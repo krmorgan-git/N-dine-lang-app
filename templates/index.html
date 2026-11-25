@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>N-dine-lang-app — Diné Translator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #273549;
+      --border: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .container { max-width: 920px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 1.6rem; }
+    .subtitle { color: var(--muted); margin-bottom: 18px; font-size: 0.92rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input[type="text"], select {
+      padding: 10px 12px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.98rem;
+    }
+    input[type="text"] { flex: 1; min-width: 240px; }
+    button.primary {
+      padding: 10px 18px;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9rem; }
+    .out-val { font-size: 1.2rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+    .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; margin-top: 10px; }
+    ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>N-dine-lang-app</h1>
+  <div class="subtitle">Offline Diné Bizaad translator powered by <span class="mono">gemma3-1b-ndine-Q4_K_M.gguf</span> (no <span class="mono">ex_sents.csv</span> at runtime)</div>
+
+  <div class="card">
+    <div class="row" style="margin-bottom:10px;">
+      <select id="modeSelect">
+        <option value="en_to_dine">English → N-dine-lang → Diné (ASCII)</option>
+        <option value="dine_to_en">Diné (ASCII) → English</option>
+      </select>
+      <label style="display:flex; align-items:center; gap:6px; font-size:0.9rem; color:var(--muted);">
+        <input type="checkbox" id="useRoots" checked> Use Dictionary Roots
+      </label>
+    </div>
+    <div class="row">
+      <input type="text" id="inputText" value="Today we will go to Gallup." placeholder="Enter a short sentence...">
+      <button id="transBtn" class="primary" onclick="runTranslate()">Translate</button>
+    </div>
+    <div id="transStatus" style="margin-top:8px; color:var(--accent); font-size:0.9rem; display:none;"></div>
+  </div>
+
+  <div id="resultCard" class="card" style="display:none;">
+    <div id="ndineBlock">
+      <div class="label">Step 1 — N-dine-lang (T S V O L)</div>
+      <div id="ndineOut" class="mono" style="margin-top:4px;"></div>
+    </div>
+    <div class="label">Translation Output</div>
+    <div id="mainOut" class="out-val"></div>
+    <div id="rootsBlock" style="display:none;">
+      <div class="label">Dictionary Roots Used</div>
+      <ul id="rootsList"></ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 10px; font-size:1.05rem;">Lexicon Lookup (<span class="mono">dine_lex_modern.db</span>)</h2>
+    <div class="row">
+      <input type="text" id="lookupQuery" placeholder="Search English or Diné word...">
+      <button class="primary" onclick="runLookup()">Search</button>
+    </div>
+    <ul id="lookupResults"></ul>
+  </div>
+</div>
+
+<script>
+  async function runTranslate() {
+    const text = document.getElementById('inputText').value;
+    const mode = document.getElementById('modeSelect').value;
+    const use_roots = document.getElementById('useRoots').checked;
+    const btn = document.getElementById('transBtn');
+    const status = document.getElementById('transStatus');
+
+    btn.disabled = true;
+    btn.textContent = 'Translating...';
+    status.style.display = 'block';
+    status.textContent = 'Running fine-tuned Gemma 3 1B...';
+
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text, mode, use_roots})
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        status.textContent = 'Error: ' + (data.error || 'Translation failed');
+        return;
+      }
+      status.style.display = 'none';
+      document.getElementById('resultCard').style.display = 'block';
+
+      if (mode === 'dine_to_en') {
+        document.getElementById('ndineBlock').style.display = 'none';
+        document.getElementById('rootsBlock').style.display = 'none';
+        document.getElementById('mainOut').textContent = data.english;
+      } else {
+        document.getElementById('ndineBlock').style.display = 'block';
+        document.getElementById('ndineOut').textContent = data.n_dine;
+        document.getElementById('mainOut').textContent = data.dine_ascii;
+
+        const rootsList = document.getElementById('rootsList');
+        rootsList.innerHTML = '';
+        if (data.roots && data.roots.length) {
+          document.getElementById('rootsBlock').style.display = 'block';
+          data.roots.forEach(r => {
+            const li = document.createElement('li');
+            li.textContent = r;
+            rootsList.appendChild(li);
+          });
+        } else {
+          document.getElementById('rootsBlock').style.display = 'none';
+        }
+      }
+    } catch (err) {
+      status.textContent = 'Request failed: ' + err;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Translate';
+    }
+  }
+
+  async function runLookup() {
+    const q = document.getElementById('lookupQuery').value;
+    const res = await fetch('/api/lookup?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    const ul = document.getElementById('lookupResults');
+    ul.innerHTML = '';
+    for (const r of data.results) {
+      const li = document.createElement('li');
+      li.textContent = `${r.dine_ascii} (${r.dine_raw}) — ${r.english}`;
+      ul.appendChild(li);
+    }
+  }
+</script>
+</body>
+</html>
