@@ -17,33 +17,44 @@
 
 ---
 
-## Guide for AI Models: `N-dine-lang` (`T S V O L`)
+## Core Architecture (`T S V O L`)
 
 Canonical slot order:
 ```text
-[T/Q/C/M]-[time/mode]  S-[subject]  V-[verb]  O-[object]  L-[location]
+T-[time]  S-[subject]  V-[verb]  O-[object]  L-[location]
 ```
-- `T-` Tense/Time (`prs`, `pst`, `fut`) · `Q-` Question · `C-` Condition · `M-` Mode/Command
-- `S-` Subject (`1sg`, `2sg`, `3sg`, `1pl`, `3pl`, or noun)
+- `T-` Time (`prs` = present, `pst` = past, `fut` = future)
+- `S-` Subject (`1sg` = I, `2sg` = you, `3sg` = he/she, `1pl` = we, `3pl` = they, or a noun)
 - `V-` Verb (`un-` for negation)
 - `O-` Object · `L-` Location
 
 ---
 
-## Quick Start
+## Setup & Installation
+
+### Option A: One-Command Install & Run (Recommended)
+
+**Linux / macOS / WSL:**
+```bash
+git clone https://github.com/krmorgan-git/N-dine-lang-app.git
+cd N-dine-lang-app
+bash start.sh
+```
+
+**Windows (Command Prompt / PowerShell):**
+```bat
+git clone https://github.com/krmorgan-git/N-dine-lang-app.git
+cd N-dine-lang-app
+start.bat
+```
+
+The script creates `.venv`, installs dependencies, downloads the ~777 MB AI model automatically on first run, and starts the web app at **<http://127.0.0.1:5080>**.
+
+### Option B: Manual Setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
-```
-
-Open `http://127.0.0.1:5080` in your browser.
-
-### Download the Model
-Download [`gemma3-1b-ndine-Q4_K_M.gguf`](https://github.com/krmorgan-git/N-dine-lang-app/releases/download/v1.0/gemma3-1b-ndine-Q4_K_M.gguf) from [Releases](https://github.com/krmorgan-git/N-dine-lang-app/releases/tag/v1.0) and place it in `models/`:
-```bash
-mkdir -p models
-curl -L -o models/gemma3-1b-ndine-Q4_K_M.gguf https://github.com/krmorgan-git/N-dine-lang-app/releases/download/v1.0/gemma3-1b-ndine-Q4_K_M.gguf
 ```
